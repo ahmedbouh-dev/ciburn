@@ -1,0 +1,17 @@
+# Drop into .github/workflows/ — posts a CI cost & waste report every Monday.
+name: CI cost report
+on:
+  schedule:
+    - cron: "0 7 * * 1"
+  workflow_dispatch:
+permissions:
+  actions: read
+  contents: read
+jobs:
+  ciburn:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: ahmedbouh-dev/ciburn@v0
+        with:
+          days: 30

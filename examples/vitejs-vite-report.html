@@ -1,0 +1,766 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:">
+<meta name="referrer" content="no-referrer">
+<meta name="color-scheme" content="light dark">
+<title>vitejs/vite · CI cost report · ciburn</title>
+<style>
+:root{
+  color-scheme:light;
+  --bg:#f7f7f5;--surface:#ffffff;--surface-2:#f2f2ef;--border:#e6e5e0;--border-strong:#d6d5cf;
+  --text:#18181a;--text-2:#55554f;--text-3:#8a8983;
+  --accent:#e2591b;--series:#2a78d6;--series-soft:#d9e7f9;
+  --good:#16794a;--good-bg:#e7f4ec;--bad:#c2362f;--bad-bg:#fbeceb;--warn:#a86400;--warn-bg:#fdf3e1;--low:#6f6e68;--low-bg:#efeeea;
+  --os-linux:#2a78d6;--os-macos:#1baf7a;--os-windows:#eb6834;--os-self-hosted:#eda100;
+  --code-bg:#f4f4f1;--shadow:0 1px 2px rgba(20,20,15,.04),0 1px 1px rgba(20,20,15,.03);
+  --radius:10px;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    color-scheme:dark;
+    --bg:#111112;--surface:#19191b;--surface-2:#202023;--border:#2a2a2e;--border-strong:#38383d;
+    --text:#ededeb;--text-2:#b4b3ad;--text-3:#7d7c77;
+    --accent:#f0743a;--series:#3987e5;--series-soft:#1d2d44;
+    --good:#4cc38a;--good-bg:#14291f;--bad:#f07b72;--bad-bg:#3a1b19;--warn:#e9a93a;--warn-bg:#33270f;--low:#9b9a94;--low-bg:#26262a;
+    --os-linux:#3987e5;--os-macos:#199e70;--os-windows:#d95926;--os-self-hosted:#c98500;
+    --code-bg:#141416;--shadow:none;
+  }
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,Roboto,"Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased}
+main{max-width:1080px;margin:0 auto;padding:40px 24px 56px}
+a{color:var(--series);text-decoration:none}
+a:hover{text-decoration:underline}
+code{font-family:var(--mono);font-size:.88em;background:var(--surface-2);border:1px solid var(--border);padding:.05em .35em;border-radius:5px;overflow-wrap:break-word}
+.num,.kpi-value,.save,.wf-cost,.lg-val{font-variant-numeric:tabular-nums}
+.strong{font-weight:550;color:var(--text)}
+.muted{display:block;color:var(--text-3);font-size:12px;margin-top:1px}
+.muted-inline{color:var(--text-3)}
+
+.top{margin-bottom:28px}
+.brand{display:inline-flex;align-items:center;gap:6px;color:var(--accent);font-weight:650;font-size:13px;letter-spacing:.01em}
+.brand span{color:var(--text-2)}
+h1{font-size:26px;line-height:1.2;letter-spacing:-.02em;margin:10px 0 4px;font-weight:650;overflow-wrap:anywhere}
+.sub{margin:0;color:var(--text-2)}
+
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:36px}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;box-shadow:var(--shadow);min-width:0}
+.kpi-label{color:var(--text-2);font-size:12.5px;font-weight:500}
+.kpi-value{font-size:30px;line-height:1.15;font-weight:650;letter-spacing:-.025em;margin:6px 0 4px}
+.kpi-value small{font-size:15px;font-weight:500;color:var(--text-3);letter-spacing:0}
+.kpi-sub{color:var(--text-3);font-size:12.5px}
+.kpi-bad .kpi-value{color:var(--bad)}
+.kpi-good .kpi-value{color:var(--good)}
+
+section{margin-bottom:36px;min-width:0}
+.section-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+h2{font-size:15px;font-weight:620;margin:0;letter-spacing:-.005em}
+.note{color:var(--text-3);font-size:12.5px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow)}
+.card.flush{padding:0;overflow:hidden}
+.empty{color:var(--text-2)}
+
+.stack{display:flex;gap:2px;height:12px;border-radius:4px;overflow:hidden;background:var(--surface-2)}
+.seg{display:block;min-width:3px}
+.os-linux{background:var(--os-linux)}.os-macos{background:var(--os-macos)}.os-windows{background:var(--os-windows)}.os-self-hosted{background:var(--os-self-hosted)}
+.legend{list-style:none;margin:16px 0 0;padding:0;display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.legend li{display:grid;grid-template-columns:auto 1fr;column-gap:8px;align-items:center}
+.sw{width:10px;height:10px;border-radius:3px;display:inline-block}
+.lg-name{color:var(--text-2);font-size:12.5px}
+.lg-val{grid-column:2;font-size:17px;font-weight:620;letter-spacing:-.01em}
+.lg-val small{font-size:12px;color:var(--text-3);font-weight:500}
+.lg-sub{grid-column:2;color:var(--text-3);font-size:12px}
+
+.findings{display:grid;gap:12px}
+.finding{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;box-shadow:var(--shadow);position:relative;min-width:0}
+.finding::before{content:"";position:absolute;left:-1px;top:14px;bottom:14px;width:3px;border-radius:0 3px 3px 0;background:var(--sev)}
+.sev-high{--sev:var(--bad);--sev-bg:var(--bad-bg)}
+.sev-medium{--sev:var(--warn);--sev-bg:var(--warn-bg)}
+.sev-low{--sev:var(--low);--sev-bg:var(--low-bg)}
+.finding-top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+.finding-meta{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;font-size:12px;color:var(--text-3);min-width:0}
+.idx{font-weight:600;color:var(--text-2);font-variant-numeric:tabular-nums}
+.sev{display:inline-flex;align-items:center;gap:5px;font-weight:600;color:var(--sev);background:var(--sev-bg);padding:1px 8px 1px 7px;border-radius:999px}
+.sev i{width:6px;height:6px;border-radius:50%;background:currentColor}
+.kind{font-family:var(--mono);font-size:11.5px}
+.scope{color:var(--text-2)}
+.save{white-space:nowrap;text-align:right;color:var(--good);font-weight:650;display:flex;flex-direction:column;align-items:flex-end;gap:1px}
+.save-hours{color:var(--text-2)}
+.save-hours .save-value{font-size:15px}
+.save.only-hours .save-hours .save-value{font-size:20px}
+.save-value{font-size:20px;letter-spacing:-.015em}
+.save-unit{font-size:12.5px;font-weight:500;margin-left:1px}
+.finding h3{font-size:16px;line-height:1.35;margin:10px 0 4px;font-weight:620;letter-spacing:-.01em}
+.detail{margin:0 0 14px;color:var(--text-2);max-width:78ch}
+.fix{border-top:1px solid var(--border);padding-top:12px}
+.fix-label{font-size:11.5px;font-weight:650;text-transform:uppercase;letter-spacing:.06em;color:var(--text-3);margin-bottom:6px}
+.fix p{margin:0 0 10px;max-width:78ch}
+.fix p:last-child{margin-bottom:0}
+.code{position:relative;margin:4px 0 10px;background:var(--code-bg);border:1px solid var(--border);border-radius:8px}
+.code:last-child{margin-bottom:0}
+.code pre{margin:0;padding:14px 16px;overflow-x:auto;font-family:var(--mono);font-size:12.5px;line-height:1.6}
+.code pre code{background:none;border:0;padding:0;font-size:inherit;overflow-wrap:normal}
+.code-lang{position:absolute;right:76px;top:9px;font-family:var(--mono);font-size:11px;color:var(--text-3)}
+.copy{position:absolute;top:6px;right:6px;display:inline-flex;align-items:center;gap:5px;font:inherit;font-size:12px;color:var(--text-2);background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:3px 8px;cursor:pointer}
+.copy:hover{color:var(--text);border-color:var(--border-strong)}
+.copy.done{color:var(--good)}
+.evidence{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:12px;font-size:12.5px;align-items:center}
+.evidence span{color:var(--text-3)}
+.evidence a{font-family:var(--mono);font-size:12px}
+
+.wfs{display:grid;gap:4px;padding:10px 18px}
+.wf{display:grid;grid-template-columns:minmax(150px,220px) 1fr 80px;grid-template-areas:"name bar cost" "name meta meta";column-gap:16px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)}
+.wf:last-child{border-bottom:0}
+.wf-name{grid-area:name;min-width:0}
+.wf-name span{display:block;font-weight:550;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wf-name code{background:none;border:0;padding:0;color:var(--text-3);font-size:11.5px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wf-bar{grid-area:bar;height:10px;background:var(--surface-2);border-radius:4px;overflow:hidden}
+.wf-bar span{display:block;height:100%;background:var(--series);border-radius:0 4px 4px 0;min-width:2px}
+.wf-cost{grid-area:cost;text-align:right;font-weight:620}
+.wf-meta{grid-area:meta;display:flex;gap:2px 14px;font-size:12px;color:var(--text-3);margin-top:4px;flex-wrap:wrap}
+.wf-meta .warn{color:var(--warn);font-weight:550}
+.trend.up{color:var(--bad)}.trend.down{color:var(--good)}
+.trend::before{content:"trend "}
+
+.table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:10px 14px;text-align:left;border-bottom:1px solid var(--border);vertical-align:middle}
+tbody tr:last-child td{border-bottom:0}
+tbody tr:hover td{background:var(--surface-2)}
+th{font-size:12px;font-weight:550;color:var(--text-2);background:var(--surface);white-space:nowrap;position:sticky;top:0}
+th.num,td.num{text-align:right;white-space:nowrap}
+td.warn{color:var(--warn);font-weight:550}
+tbody td:first-child{min-width:190px}
+th button{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:4px}
+th button:focus-visible{outline:2px solid var(--series);outline-offset:2px;border-radius:3px}
+th.num button{flex-direction:row-reverse}
+.arrow{width:8px;opacity:0;font-size:10px}
+th.sorted-asc .arrow,th.sorted-desc .arrow{opacity:1}
+th.sorted-asc .arrow::after{content:"▲"}th.sorted-desc .arrow::after{content:"▼"}
+th.sorted-asc,th.sorted-desc{color:var(--text)}
+.os-chip{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;color:var(--text-2)}
+.rate{display:inline-block;width:44px;height:6px;background:var(--surface-2);border-radius:3px;overflow:hidden;margin-right:8px;vertical-align:middle}
+.rate span{display:block;height:100%;background:var(--series)}
+#flaky .rate span{background:var(--warn)}
+td.links{white-space:nowrap}
+td.links a{font-family:var(--mono);font-size:12px;margin-right:8px}
+
+.collapsible:not(.expanded) .extra{display:none}
+.more{display:block;width:100%;font:inherit;font-size:12.5px;color:var(--text-2);background:none;border:0;border-top:1px solid var(--border);padding:10px;cursor:pointer;text-align:center}
+.more:hover{color:var(--text);background:var(--surface-2)}
+.wfs .more{margin-top:-1px;border-top:0}
+.two{display:grid;grid-template-columns:1fr;gap:0}
+footer{border-top:1px solid var(--border);padding-top:20px;color:var(--text-3);font-size:12.5px}
+footer p{margin:0 0 8px;max-width:90ch}
+footer strong,footer .strong{color:var(--text-2);font-weight:600}
+footer .gen{margin-top:14px}
+
+@media (max-width:820px){
+  .legend{grid-template-columns:repeat(2,1fr)}
+}
+@media (max-width:560px){
+  main{padding:24px 16px 40px}
+  h1{font-size:21px}
+  .kpis{gap:8px;grid-template-columns:repeat(2,1fr)}
+  .kpi:last-child:nth-child(odd){grid-column:1/-1}
+  .kpi{padding:12px 14px}
+  .kpi-value{font-size:23px}
+  .finding{padding:16px}
+  .finding-top{flex-direction:column-reverse;gap:6px}
+  .save{text-align:left;align-items:flex-start;flex-direction:row;gap:12px;align-items:baseline}
+  .wfs{padding:6px 14px}
+  .wf{grid-template-columns:1fr auto;grid-template-areas:"name cost" "bar bar" "meta meta";row-gap:6px}
+  .wf-meta{margin-top:0;column-gap:10px}
+  .trend::before{content:""}
+  th,td{padding:9px 12px}
+}
+@media print{
+  body{background:#fff}
+  .copy{display:none}
+  .finding,.card,.kpi{box-shadow:none;break-inside:avoid}
+}
+</style>
+</head>
+<body>
+<main>
+<header class="top">
+  <div class="brand"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 2.5c.6 3.2-1.2 5-2.7 6.6C7.8 10.7 6.5 12.2 6.5 15a5.5 5.5 0 0 0 11 0c0-2.3-1-4-2.2-5.4.1 1.6-.5 2.8-1.6 3.3.4-3.6-.8-7.6-1.7-10.4Z" fill="currentColor"/></svg><span>ciburn</span></div>
+  <h1>vitejs/vite</h1>
+  <p class="sub">Nov 12 – Nov 19, 2026 · 7 days · 1,024 runs · 2,853 jobs</p>
+</header>
+<div class="kpis">
+<div class="kpi"><div class="kpi-label">Monthly CI spend</div><div class="kpi-value">$296</div><div class="kpi-sub">$69.04 in 7 days · 4,456 min</div></div>
+<div class="kpi"><div class="kpi-label">Wasted</div><div class="kpi-value">3%</div><div class="kpi-sub">$7.54/mo on reruns, flakes &amp; superseded runs</div></div>
+<div class="kpi kpi-good"><div class="kpi-label">Potential savings</div><div class="kpi-value">$165<small>/mo</small></div><div class="kpi-sub">GitHub billing, from 3 fixes below</div></div>
+<div class="kpi kpi-good"><div class="kpi-label">Dev time saved</div><div class="kpi-value">3.2h<small>/mo</small></div><div class="kpi-sub">developer hours no longer spent waiting</div></div>
+<div class="kpi"><div class="kpi-label">Queue time</div><div class="kpi-value">2.4<small> h</small></div><div class="kpi-sub">jobs waiting for a runner in 7 days</div></div>
+</div>
+<section id="os"><div class="section-head"><h2>Cost by runner</h2><span class="note">per month</span></div><div class="card"><div class="stack" role="img" aria-label="Cost share by runner OS"><span class="seg os-linux" style="flex-grow:0.2267" title="Linux: $67.07/mo (23%)"></span><span class="seg os-macos" style="flex-grow:0.6808" title="macOS: $201/mo (68%)"></span><span class="seg os-windows" style="flex-grow:0.0926" title="Windows: $27.39/mo (9%)"></span></div><ul class="legend"><li><span class="sw os-linux"></span><span class="lg-name">Linux</span><span class="lg-val">$67.07<small>/mo</small></span><span class="lg-sub">23% · 3,059 min</span></li><li><span class="sw os-macos"></span><span class="lg-name">macOS</span><span class="lg-val">$201<small>/mo</small></span><span class="lg-sub">68% · 758 min</span></li><li><span class="sw os-windows"></span><span class="lg-name">Windows</span><span class="lg-val">$27.39<small>/mo</small></span><span class="lg-sub">9% · 639 min</span></li></ul></div></section>
+<section id="fixes"><div class="section-head"><h2>Top fixes</h2><span class="note">ranked by billing savings + dev time</span></div><div class="findings"><article class="finding sev-high">
+  <div class="finding-top">
+    <div class="finding-meta"><span class="idx">1</span><span class="sev"><i></i>High</span><span class="kind">flaky-job</span><span class="scope">CI › Build&amp;Test: node-26, windows-latest</span></div>
+    <div class="save"><div class="save-line"><span class="save-value">$2.27</span><span class="save-unit">/mo</span></div><div class="save-line save-hours"><span class="save-value">3.2h</span><span class="save-unit"> dev time/mo</span></div></div>
+  </div>
+  <h3><code>CI</code> › <code>Build&amp;Test: node-26, windows-latest</code> is flaky (8% of commits)</h3>
+  <p class="detail"><code>CI</code> › <code>Build&amp;Test: node-26, windows-latest</code> failed and then passed on the same commit in 13 of 162 commits (8% flake rate). The failed attempts burned 53 billable min ($0.53). Most flakes fail in step <code>Test serve (bundled dev)</code> (10×). Developers then waited at least 0.7 h for the green retries (developer time, not GitHub billing); median time from red to green was 11.4 min.</p>
+  <div class="fix"><div class="fix-label">Fix</div><p>Find the flaky test: <code>gh run view 44478538656 --log-failed</code> (it fails in step <code>Test serve (bundled dev)</code>). Quarantine or fix it; until then, retry inside the job instead of re-running the whole workflow:</p><div class="code"><span class="code-lang">yaml</span><button type="button" class="copy" aria-label="Copy code"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><rect x="5" y="5" width="8.5" height="8.5" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M10.5 3.2V3a1.5 1.5 0 0 0-1.5-1.5H3A1.5 1.5 0 0 0 1.5 3v6A1.5 1.5 0 0 0 3 10.5h.2" fill="none" stroke="currentColor" stroke-width="1.4"/></svg><span>Copy</span></button><pre><code>- uses: nick-fields/retry@v3
+  with:
+    timeout_minutes: 20
+    max_attempts: 2
+    command: &lt;the command of step &quot;Test serve (bundled dev)&quot;&gt;</code></pre></div></div>
+  <div class="evidence"><span>Evidence</span><a href="https://github.com/vitejs/vite/actions/runs/44478538656" target="_blank" rel="noopener noreferrer">#44478538656</a><a href="https://github.com/vitejs/vite/actions/runs/44446046478" target="_blank" rel="noopener noreferrer">#44446046478</a><a href="https://github.com/vitejs/vite/actions/runs/44331368634" target="_blank" rel="noopener noreferrer">#44331368634</a><a href="https://github.com/vitejs/vite/actions/runs/44233470586" target="_blank" rel="noopener noreferrer">#44233470586</a><a href="https://github.com/vitejs/vite/actions/runs/44074100276" target="_blank" rel="noopener noreferrer">#44074100276</a></div>
+</article>
+<article class="finding sev-high">
+  <div class="finding-top">
+    <div class="finding-meta"><span class="idx">2</span><span class="sev"><i></i>High</span><span class="kind">expensive-runner</span><span class="scope">CI › Build&amp;Test: node-26, macos-latest</span></div>
+    <div class="save"><div class="save-line"><span class="save-value">$163</span><span class="save-unit">/mo</span></div></div>
+  </div>
+  <h3>macOS matrix leg <code>CI</code> › <code>Build&amp;Test: node-26, macos-latest</code> runs on every PR</h3>
+  <p class="detail"><code>CI</code> › <code>Build&amp;Test: node-26, macos-latest</code> cost $47.00 (68% of all spend) at $0.062/min — 10.3× the linux rate — and 139 of its 171 runs were on pull requests, where the linux leg <code>Build&amp;Test: node-26, ubuntu-latest</code> already runs the same job. Savings = dropping the macOS leg on PRs only.</p>
+  <div class="fix"><div class="fix-label">Fix</div><p>Run the full OS matrix on the default branch and nightly, linux only on PRs:</p><div class="code"><span class="code-lang">yaml</span><button type="button" class="copy" aria-label="Copy code"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><rect x="5" y="5" width="8.5" height="8.5" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M10.5 3.2V3a1.5 1.5 0 0 0-1.5-1.5H3A1.5 1.5 0 0 0 1.5 3v6A1.5 1.5 0 0 0 3 10.5h.2" fill="none" stroke="currentColor" stroke-width="1.4"/></svg><span>Copy</span></button><pre><code>strategy:
+  matrix:
+    os: ${{ github.event_name == &#39;pull_request&#39; &amp;&amp; fromJSON(&#39;[&quot;ubuntu-latest&quot;]&#39;) || fromJSON(&#39;[&quot;ubuntu-latest&quot;, &quot;macos-latest&quot;]&#39;) }}
+runs-on: ${{ matrix.os }}</code></pre></div></div>
+  <div class="evidence"><span>Evidence</span><a href="https://github.com/vitejs/vite/actions/runs/44613902820" target="_blank" rel="noopener noreferrer">#44613902820</a><a href="https://github.com/vitejs/vite/actions/runs/44612796960" target="_blank" rel="noopener noreferrer">#44612796960</a><a href="https://github.com/vitejs/vite/actions/runs/44610628213" target="_blank" rel="noopener noreferrer">#44610628213</a><a href="https://github.com/vitejs/vite/actions/runs/44570831831" target="_blank" rel="noopener noreferrer">#44570831831</a><a href="https://github.com/vitejs/vite/actions/runs/44570340639" target="_blank" rel="noopener noreferrer">#44570340639</a></div>
+</article>
+<article class="finding sev-low">
+  <div class="finding-top">
+    <div class="finding-meta"><span class="idx">3</span><span class="sev"><i></i>Low</span><span class="kind">rerun-waste</span><span class="scope">CI</span></div>
+    <div class="save"><div class="save-line"><span class="save-value">$0.30</span><span class="save-unit">/mo</span></div></div>
+  </div>
+  <h3>Retrying failures without code changes, mostly in <code>CI</code></h3>
+  <p class="detail">20 runs were re-run; 42 job executions (83 billable min, $0.63) were thrown away by a later attempt, 100% of it in <code>CI</code>. 61 min of that are flaky failures counted in their own findings; the remaining 22 min ($0.07) are counted here. 6 re-executions were of jobs that had already passed (&quot;Re-run all jobs&quot;): 6 min ($0.01).</p>
+  <div class="fix"><div class="fix-label">Fix</div><p>Re-run only what failed: use <strong>Re-run failed jobs</strong> in the UI or <code>gh run rerun 44478538656 --failed</code> instead of re-running all jobs. A re-run without a code change only helps when the failure is flaky: find the unstable job (see the flaky-job findings) and fix it, or retry just the unstable step in-job instead of re-running the job:</p><div class="code"><span class="code-lang">yaml</span><button type="button" class="copy" aria-label="Copy code"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><rect x="5" y="5" width="8.5" height="8.5" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M10.5 3.2V3a1.5 1.5 0 0 0-1.5-1.5H3A1.5 1.5 0 0 0 1.5 3v6A1.5 1.5 0 0 0 3 10.5h.2" fill="none" stroke="currentColor" stroke-width="1.4"/></svg><span>Copy</span></button><pre><code>- uses: nick-fields/retry@v3
+  with:
+    timeout_minutes: 15
+    max_attempts: 2
+    command: &lt;unstable command&gt;</code></pre></div></div>
+  <div class="evidence"><span>Evidence</span><a href="https://github.com/vitejs/vite/actions/runs/44478538656" target="_blank" rel="noopener noreferrer">#44478538656</a><a href="https://github.com/vitejs/vite/actions/runs/44446046478" target="_blank" rel="noopener noreferrer">#44446046478</a><a href="https://github.com/vitejs/vite/actions/runs/44331368634" target="_blank" rel="noopener noreferrer">#44331368634</a><a href="https://github.com/vitejs/vite/actions/runs/44331363471" target="_blank" rel="noopener noreferrer">#44331363471</a><a href="https://github.com/vitejs/vite/actions/runs/44278422894" target="_blank" rel="noopener noreferrer">#44278422894</a></div>
+</article></div></section>
+<section id="workflows"><div class="section-head"><h2>Workflows by cost</h2><span class="note">per month · trend = 2nd half vs 1st half of window</span></div><div class="card wfs collapsible"><div class="wf" title="CI: $287/mo, 180 runs">
+  <div class="wf-name"><span>CI</span><code>.github/workflows/ci.yml</code></div>
+  <div class="wf-bar"><span style="width:100.00%"></span></div>
+  <div class="wf-cost">$287</div>
+  <div class="wf-meta"><span>97% of spend</span><span class="warn">43% pass</span><span>p50 4m 36s</span><span class="trend up">+28%</span></div>
+</div>
+<div class="wf" title="Zizmor: $3.73/mo, 149 runs">
+  <div class="wf-name"><span>Zizmor</span><code>.github/workflows/zizmor.yml</code></div>
+  <div class="wf-bar"><span style="width:1.30%"></span></div>
+  <div class="wf-cost">$3.73</div>
+  <div class="wf-meta"><span>1% of spend</span><span>99% pass</span><span>p50 23s</span><span class="trend">+46%</span></div>
+</div>
+<div class="wf" title="Semantic Pull Request: $1.67/mo, 196 runs">
+  <div class="wf-name"><span>Semantic Pull Request</span><code>.github/workflows/semantic-pull-request.yml</code></div>
+  <div class="wf-bar"><span style="width:0.58%"></span></div>
+  <div class="wf-cost">$1.67</div>
+  <div class="wf-meta"><span>&lt;1% of spend</span><span>98% pass</span><span>p50 11s</span><span class="trend">+90%</span></div>
+</div>
+<div class="wf" title="Push on main: $1.11/mo, 44 runs">
+  <div class="wf-name"><span>Push on main</span><code>dynamic/github-code-scanning/codeql</code></div>
+  <div class="wf-bar"><span style="width:0.39%"></span></div>
+  <div class="wf-cost">$1.11</div>
+  <div class="wf-meta"><span>&lt;1% of spend</span><span>100% pass</span><span>p50 45s</span><span class="trend">-31%</span></div>
+</div>
+<div class="wf" title="Preview release: $0.99/mo, 209 runs">
+  <div class="wf-name"><span>Preview release</span><code>.github/workflows/preview-release.yml</code></div>
+  <div class="wf-bar"><span style="width:0.34%"></span></div>
+  <div class="wf-cost">$0.99</div>
+  <div class="wf-meta"><span>&lt;1% of spend</span><span>93% pass</span><span>p50 1s</span><span class="trend">-30%</span></div>
+</div>
+<div class="wf" title="Bot: $0.43/mo, 98 runs">
+  <div class="wf-name"><span>Bot</span><code>.github/workflows/bot.yml</code></div>
+  <div class="wf-bar"><span style="width:0.15%"></span></div>
+  <div class="wf-cost">$0.43</div>
+  <div class="wf-meta"><span>&lt;1% of spend</span><span>100% pass</span><span>p50 12s</span><span class="trend">+83%</span></div>
+</div>
+<div class="wf" title="Publish Package: $0.26/mo, 27 runs">
+  <div class="wf-name"><span>Publish Package</span><code>.github/workflows/publish.yml</code></div>
+  <div class="wf-bar"><span style="width:0.09%"></span></div>
+  <div class="wf-cost">$0.26</div>
+  <div class="wf-meta"><span>&lt;1% of spend</span><span>100% pass</span><span>p50 37s</span><span class="trend">-45%</span></div>
+</div>
+<div class="wf" title=".github/workflows/copilot-setup-steps.yml: $0.17/mo, 7 runs">
+  <div class="wf-name"><span>.github/workflows/copilot-setup-steps.yml</span><code>.github/workflows/copilot-setup-steps.yml</code></div>
+  <div class="wf-bar"><span style="width:0.06%"></span></div>
+  <div class="wf-cost">$0.17</div>
+  <div class="wf-meta"><span>&lt;1% of spend</span><span>100% pass</span><span>p50 43s</span><span class="trend">–</span></div>
+</div>
+<div class="wf extra" title="Issue Labeled: $0.09/mo, 9 runs">
+  <div class="wf-name"><span>Issue Labeled</span><code>.github/workflows/issue-labeled.yml</code></div>
+  <div class="wf-bar"><span style="width:0.03%"></span></div>
+  <div class="wf-cost">$0.09</div>
+  <div class="wf-meta"><span>&lt;1% of spend</span><span>100% pass</span><span>p50 11s</span><span class="trend">–</span></div>
+</div>
+<div class="wf extra" title="Issue Close Require: $0.09/mo, 7 runs">
+  <div class="wf-name"><span>Issue Close Require</span><code>.github/workflows/issue-close-require.yml</code></div>
+  <div class="wf-bar"><span style="width:0.03%"></span></div>
+  <div class="wf-cost">$0.09</div>
+  <div class="wf-meta"><span>&lt;1% of spend</span><span>100% pass</span><span>p50 13s</span><span class="trend">+25%</span></div>
+</div>
+<div class="wf extra" title="ecosystem-ci trigger: $0.04/mo, 89 runs">
+  <div class="wf-name"><span>ecosystem-ci trigger</span><code>.github/workflows/ecosystem-ci-trigger.yml</code></div>
+  <div class="wf-bar"><span style="width:0.01%"></span></div>
+  <div class="wf-cost">$0.04</div>
+  <div class="wf-meta"><span>&lt;1% of spend</span><span>100% pass</span><span>p50 1s</span><span class="trend">+400%</span></div>
+</div>
+<div class="wf extra" title="Lock Closed Issues: $0.04/mo, 7 runs">
+  <div class="wf-name"><span>Lock Closed Issues</span><code>.github/workflows/lock-closed-issues.yml</code></div>
+  <div class="wf-bar"><span style="width:0.01%"></span></div>
+  <div class="wf-cost">$0.04</div>
+  <div class="wf-meta"><span>&lt;1% of spend</span><span>100% pass</span><span>p50 16s</span><span class="trend">-25%</span></div>
+</div>
+<div class="wf extra" title="Semgrep: $0.04/mo, 1 runs">
+  <div class="wf-name"><span>Semgrep</span><code>.github/workflows/semgrep.yml</code></div>
+  <div class="wf-bar"><span style="width:0.01%"></span></div>
+  <div class="wf-cost">$0.04</div>
+  <div class="wf-meta"><span>&lt;1% of spend</span><span>100% pass</span><span>p50 1m 04s</span><span class="trend">–</span></div>
+</div>
+<div class="wf extra" title="Prepare Release: $0.04/mo, 1 runs">
+  <div class="wf-name"><span>Prepare Release</span><code>.github/workflows/prepare-release.yml</code></div>
+  <div class="wf-bar"><span style="width:0.01%"></span></div>
+  <div class="wf-cost">$0.04</div>
+  <div class="wf-meta"><span>&lt;1% of spend</span><span>100% pass</span><span>p50 29s</span><span class="trend">–</span></div>
+</div><button type="button" class="more" data-more="Show 6 more workflows ($0.34/mo)" data-less="Show fewer">Show 6 more workflows ($0.34/mo)</button></div></section>
+<section id="jobs"><div class="section-head"><h2>Jobs</h2><span class="note">click a column to sort</span></div><div class="card flush collapsible" data-visible="12"><div class="table-wrap"><table class="sortable">
+<thead><tr><th scope="col" class="" data-type="text"><button type="button">Job<span class="arrow" aria-hidden="true"></span></button></th><th scope="col" class="" data-type="text"><button type="button">Runner<span class="arrow" aria-hidden="true"></span></button></th><th scope="col" class="num sorted-desc" data-type="num"><button type="button">Cost/mo<span class="arrow" aria-hidden="true"></span></button></th><th scope="col" class="num" data-type="num"><button type="button">Runs<span class="arrow" aria-hidden="true"></span></button></th><th scope="col" class="num" data-type="num"><button type="button">p50<span class="arrow" aria-hidden="true"></span></button></th><th scope="col" class="num" data-type="num"><button type="button">p95<span class="arrow" aria-hidden="true"></span></button></th><th scope="col" class="num" data-type="num"><button type="button">p95 queue<span class="arrow" aria-hidden="true"></span></button></th><th scope="col" class="num" data-type="num"><button type="button">Fail rate<span class="arrow" aria-hidden="true"></span></button></th></tr></thead>
+<tbody><tr>
+<td data-v="build&amp;test: node-26, macos-latest"><span class="strong">Build&amp;Test: node-26, macos-latest</span><span class="muted">CI</span></td>
+<td data-v="macos"><span class="os-chip"><span class="sw os-macos"></span>macOS</span></td>
+<td class="num" data-v="47">$201</td>
+<td class="num" data-v="171">171</td>
+<td class="num" data-v="261">4m 21s</td>
+<td class="num" data-v="345">5m 45s</td>
+<td class="num" data-v="11.5">12s</td>
+<td class="num warn" data-v="0.142">14%</td>
+</tr>
+<tr>
+<td data-v="build&amp;test: node-26, windows-latest"><span class="strong">Build&amp;Test: node-26, windows-latest</span><span class="muted">CI</span></td>
+<td data-v="windows"><span class="os-chip"><span class="sw os-windows"></span>Windows</span></td>
+<td class="num" data-v="6.39">$27.39</td>
+<td class="num" data-v="189">189</td>
+<td class="num" data-v="181">3m 01s</td>
+<td class="num" data-v="230.2">3m 50s</td>
+<td class="num" data-v="9">9s</td>
+<td class="num warn" data-v="0.4866">49%</td>
+</tr>
+<tr>
+<td data-v="build&amp;test: node-20, ubuntu-latest"><span class="strong">Build&amp;Test: node-20, ubuntu-latest</span><span class="muted">CI</span></td>
+<td data-v="linux"><span class="os-chip"><span class="sw os-linux"></span>Linux</span></td>
+<td class="num" data-v="2.91">$12.47</td>
+<td class="num" data-v="173">173</td>
+<td class="num" data-v="148">2m 28s</td>
+<td class="num" data-v="176">2m 56s</td>
+<td class="num" data-v="7">7s</td>
+<td class="num warn" data-v="0.1228">12%</td>
+</tr>
+<tr>
+<td data-v="build&amp;test: node-22, ubuntu-latest"><span class="strong">Build&amp;Test: node-22, ubuntu-latest</span><span class="muted">CI</span></td>
+<td data-v="linux"><span class="os-chip"><span class="sw os-linux"></span>Linux</span></td>
+<td class="num" data-v="2.84">$12.17</td>
+<td class="num" data-v="171">171</td>
+<td class="num" data-v="137">2m 17s</td>
+<td class="num" data-v="164">2m 44s</td>
+<td class="num" data-v="8">8s</td>
+<td class="num" data-v="0.071">7%</td>
+</tr>
+<tr>
+<td data-v="build&amp;test: node-24, ubuntu-latest"><span class="strong">Build&amp;Test: node-24, ubuntu-latest</span><span class="muted">CI</span></td>
+<td data-v="linux"><span class="os-chip"><span class="sw os-linux"></span>Linux</span></td>
+<td class="num" data-v="2.69">$11.53</td>
+<td class="num" data-v="173">173</td>
+<td class="num" data-v="129">2m 09s</td>
+<td class="num" data-v="154">2m 34s</td>
+<td class="num" data-v="10.4">10s</td>
+<td class="num warn" data-v="0.117">12%</td>
+</tr>
+<tr>
+<td data-v="build&amp;test: node-26, ubuntu-latest"><span class="strong">Build&amp;Test: node-26, ubuntu-latest</span><span class="muted">CI</span></td>
+<td data-v="linux"><span class="os-chip"><span class="sw os-linux"></span>Linux</span></td>
+<td class="num" data-v="2.66">$11.40</td>
+<td class="num" data-v="171">171</td>
+<td class="num" data-v="132">2m 12s</td>
+<td class="num" data-v="154">2m 34s</td>
+<td class="num" data-v="5.5">6s</td>
+<td class="num warn" data-v="0.1598">16%</td>
+</tr>
+<tr>
+<td data-v="lint: node-26, ubuntu-latest"><span class="strong">Lint: node-26, ubuntu-latest</span><span class="muted">CI</span></td>
+<td data-v="linux"><span class="os-chip"><span class="sw os-linux"></span>Linux</span></td>
+<td class="num" data-v="1.76">$7.54</td>
+<td class="num" data-v="176">176</td>
+<td class="num" data-v="67">1m 07s</td>
+<td class="num" data-v="84.3">1m 24s</td>
+<td class="num" data-v="4">4s</td>
+<td class="num" data-v="0.0971">10%</td>
+</tr>
+<tr>
+<td data-v="run zizmor"><span class="strong">Run zizmor</span><span class="muted">Zizmor</span></td>
+<td data-v="linux"><span class="os-chip"><span class="sw os-linux"></span>Linux</span></td>
+<td class="num" data-v="0.87">$3.73</td>
+<td class="num" data-v="145">145</td>
+<td class="num" data-v="19">19s</td>
+<td class="num" data-v="25.8">26s</td>
+<td class="num" data-v="4">4s</td>
+<td class="num" data-v="0">0%</td>
+</tr>
+<tr>
+<td data-v="semantic pull request"><span class="strong">Semantic Pull Request</span><span class="muted">Semantic Pull Request</span></td>
+<td data-v="linux"><span class="os-chip"><span class="sw os-linux"></span>Linux</span></td>
+<td class="num" data-v="0.39">$1.67</td>
+<td class="num" data-v="197">197</td>
+<td class="num" data-v="7">7s</td>
+<td class="num" data-v="12">12s</td>
+<td class="num" data-v="9">9s</td>
+<td class="num" data-v="0.0254">3%</td>
+</tr>
+<tr>
+<td data-v="get changed files"><span class="strong">Get changed files</span><span class="muted">CI</span></td>
+<td data-v="linux"><span class="os-chip"><span class="sw os-linux"></span>Linux</span></td>
+<td class="num" data-v="0.35">$1.50</td>
+<td class="num" data-v="176">176</td>
+<td class="num" data-v="9">9s</td>
+<td class="num" data-v="20">20s</td>
+<td class="num" data-v="10">10s</td>
+<td class="num" data-v="0">0%</td>
+</tr>
+<tr>
+<td data-v="analyze (actions)"><span class="strong">Analyze (actions)</span><span class="muted">Push on main</span></td>
+<td data-v="linux"><span class="os-chip"><span class="sw os-linux"></span>Linux</span></td>
+<td class="num" data-v="0.26">$1.11</td>
+<td class="num" data-v="44">44</td>
+<td class="num" data-v="40">40s</td>
+<td class="num" data-v="48.9">49s</td>
+<td class="num" data-v="3.9">4s</td>
+<td class="num" data-v="0">0%</td>
+</tr>
+<tr>
+<td data-v="preview"><span class="strong">preview</span><span class="muted">Preview release</span></td>
+<td data-v="linux"><span class="os-chip"><span class="sw os-linux"></span>Linux</span></td>
+<td class="num" data-v="0.23">$0.99</td>
+<td class="num" data-v="203">203</td>
+<td class="num" data-v="25">25s</td>
+<td class="num" data-v="29.1">29s</td>
+<td class="num" data-v="4">4s</td>
+<td class="num" data-v="0.0256">3%</td>
+</tr>
+<tr class="extra">
+<td data-v="build &amp; test failed"><span class="strong">Build &amp; Test Failed</span><span class="muted">CI</span></td>
+<td data-v="linux"><span class="os-chip"><span class="sw os-linux"></span>Linux</span></td>
+<td class="num" data-v="0.23">$0.99</td>
+<td class="num" data-v="195">195</td>
+<td class="num" data-v="4">4s</td>
+<td class="num" data-v="5.4">5s</td>
+<td class="num" data-v="8.3">8s</td>
+<td class="num" data-v="0">0%</td>
+</tr>
+<tr class="extra">
+<td data-v="build &amp; test passed or skipped"><span class="strong">Build &amp; Test Passed or Skipped</span><span class="muted">CI</span></td>
+<td data-v="linux"><span class="os-chip"><span class="sw os-linux"></span>Linux</span></td>
+<td class="num" data-v="0.16">$0.69</td>
+<td class="num" data-v="195">195</td>
+<td class="num" data-v="4">4s</td>
+<td class="num" data-v="6">6s</td>
+<td class="num" data-v="7">7s</td>
+<td class="num" data-v="0">0%</td>
+</tr>
+<tr class="extra">
+<td data-v="agentscan"><span class="strong">AgentScan</span><span class="muted">Bot</span></td>
+<td data-v="linux"><span class="os-chip"><span class="sw os-linux"></span>Linux</span></td>
+<td class="num" data-v="0.1">$0.43</td>
+<td class="num" data-v="98">98</td>
+<td class="num" data-v="12">12s</td>
+<td class="num" data-v="20.1">20s</td>
+<td class="num" data-v="9.5">10s</td>
+<td class="num" data-v="0">0%</td>
+</tr>
+<tr class="extra">
+<td data-v="detect release commit"><span class="strong">Detect release commit</span><span class="muted">Publish Package</span></td>
+<td data-v="linux"><span class="os-chip"><span class="sw os-linux"></span>Linux</span></td>
+<td class="num" data-v="0.06">$0.26</td>
+<td class="num" data-v="27">27</td>
+<td class="num" data-v="32">32s</td>
+<td class="num" data-v="43.7">44s</td>
+<td class="num" data-v="6.7">7s</td>
+<td class="num" data-v="0">0%</td>
+</tr>
+<tr class="extra">
+<td data-v="copilot-setup-steps"><span class="strong">copilot-setup-steps</span><span class="muted">.github/workflows/copilot-setup-steps.yml</span></td>
+<td data-v="linux"><span class="os-chip"><span class="sw os-linux"></span>Linux</span></td>
+<td class="num" data-v="0.04">$0.17</td>
+<td class="num" data-v="7">7</td>
+<td class="num" data-v="40">40s</td>
+<td class="num" data-v="45.1">45s</td>
+<td class="num" data-v="3">3s</td>
+<td class="num" data-v="0">0%</td>
+</tr>
+<tr class="extra">
+<td data-v="reply-labeled"><span class="strong">reply-labeled</span><span class="muted">Issue Labeled</span></td>
+<td data-v="linux"><span class="os-chip"><span class="sw os-linux"></span>Linux</span></td>
+<td class="num" data-v="0.02">$0.09</td>
+<td class="num" data-v="9">9</td>
+<td class="num" data-v="6">6s</td>
+<td class="num" data-v="13">13s</td>
+<td class="num" data-v="7.8">8s</td>
+<td class="num" data-v="0">0%</td>
+</tr>
+<tr class="extra">
+<td data-v="close-issues"><span class="strong">close-issues</span><span class="muted">Issue Close Require</span></td>
+<td data-v="linux"><span class="os-chip"><span class="sw os-linux"></span>Linux</span></td>
+<td class="num" data-v="0.02">$0.09</td>
+<td class="num" data-v="7">7</td>
+<td class="num" data-v="8">8s</td>
+<td class="num" data-v="74.1">1m 14s</td>
+<td class="num" data-v="5.4">5s</td>
+<td class="num" data-v="0">0%</td>
+</tr>
+<tr class="extra">
+<td data-v="trigger"><span class="strong">trigger</span><span class="muted">ecosystem-ci trigger</span></td>
+<td data-v="linux"><span class="os-chip"><span class="sw os-linux"></span>Linux</span></td>
+<td class="num" data-v="0.01">$0.04</td>
+<td class="num" data-v="89">89</td>
+<td class="num" data-v="57">57s</td>
+<td class="num" data-v="70.2">1m 10s</td>
+<td class="num" data-v="6.2">6s</td>
+<td class="num" data-v="0">0%</td>
+</tr>
+<tr class="extra">
+<td data-v="action"><span class="strong">action</span><span class="muted">Lock Closed Issues</span></td>
+<td data-v="linux"><span class="os-chip"><span class="sw os-linux"></span>Linux</span></td>
+<td class="num" data-v="0.01">$0.04</td>
+<td class="num" data-v="7">7</td>
+<td class="num" data-v="9">9s</td>
+<td class="num" data-v="11.4">11s</td>
+<td class="num" data-v="5.7">6s</td>
+<td class="num" data-v="0">0%</td>
+</tr>
+<tr class="extra">
+<td data-v="run semgrep"><span class="strong">Run Semgrep</span><span class="muted">Semgrep</span></td>
+<td data-v="linux"><span class="os-chip"><span class="sw os-linux"></span>Linux</span></td>
+<td class="num" data-v="0.01">$0.04</td>
+<td class="num" data-v="1">1</td>
+<td class="num" data-v="58">58s</td>
+<td class="num" data-v="58">58s</td>
+<td class="num" data-v="5">5s</td>
+<td class="num" data-v="0">0%</td>
+</tr>
+<tr class="extra">
+<td data-v="publish v8.4.0-beta.1"><span class="strong">Publish v8.4.0-beta.1</span><span class="muted">Publish Package</span></td>
+<td data-v="linux"><span class="os-chip"><span class="sw os-linux"></span>Linux</span></td>
+<td class="num" data-v="0.01">$0.04</td>
+<td class="num" data-v="1">1</td>
+<td class="num" data-v="36">36s</td>
+<td class="num" data-v="36">36s</td>
+<td class="num" data-v="174">2m 54s</td>
+<td class="num" data-v="0">0%</td>
+</tr>
+<tr class="extra">
+<td data-v="prepare release pr"><span class="strong">Prepare release PR</span><span class="muted">Prepare Release</span></td>
+<td data-v="linux"><span class="os-chip"><span class="sw os-linux"></span>Linux</span></td>
+<td class="num" data-v="0.01">$0.04</td>
+<td class="num" data-v="1">1</td>
+<td class="num" data-v="24">24s</td>
+<td class="num" data-v="24">24s</td>
+<td class="num" data-v="3">3s</td>
+<td class="num" data-v="0">0%</td>
+</tr>
+<tr class="extra">
+<td data-v="comment and close issue"><span class="strong">Comment and close issue</span><span class="muted">Bot</span></td>
+<td data-v="linux"><span class="os-chip"><span class="sw os-linux"></span>Linux</span></td>
+<td class="num" data-v="0">$0</td>
+<td class="num" data-v="98">98</td>
+<td class="num" data-v="0">0s</td>
+<td class="num" data-v="0">0s</td>
+<td class="num" data-v="0">0s</td>
+<td class="num" data-v="0">0%</td>
+</tr>
+<tr class="extra">
+<td data-v="comment and close pr"><span class="strong">Comment and close PR</span><span class="muted">Bot</span></td>
+<td data-v="linux"><span class="os-chip"><span class="sw os-linux"></span>Linux</span></td>
+<td class="num" data-v="0">$0</td>
+<td class="num" data-v="98">98</td>
+<td class="num" data-v="10">10s</td>
+<td class="num" data-v="10">10s</td>
+<td class="num" data-v="5">5s</td>
+<td class="num" data-v="0">0%</td>
+</tr>
+<tr class="extra">
+<td data-v="publish ${{ needs.detect-release.outputs.tag }}"><span class="strong">Publish ${{ needs.detect-release.outputs.tag }}</span><span class="muted">Publish Package</span></td>
+<td data-v="linux"><span class="os-chip"><span class="sw os-linux"></span>Linux</span></td>
+<td class="num" data-v="0">$0</td>
+<td class="num" data-v="26">26</td>
+<td class="num" data-v="0">0s</td>
+<td class="num" data-v="0">0s</td>
+<td class="num" data-v="0">0s</td>
+<td class="num" data-v="0">0%</td>
+</tr>
+<tr class="extra">
+<td data-v="build&amp;test: node-${{ matrix.node_version }}, ${{ matrix.os }}"><span class="strong">Build&amp;Test: node-${{ matrix.node_version }}, ${{ matrix.os }}</span><span class="muted">CI</span></td>
+<td data-v="linux"><span class="os-chip"><span class="sw os-linux"></span>Linux</span></td>
+<td class="num" data-v="0">$0</td>
+<td class="num" data-v="5">5</td>
+<td class="num" data-v="0">0s</td>
+<td class="num" data-v="0">0s</td>
+<td class="num" data-v="0">0s</td>
+<td class="num" data-v="0">0%</td>
+</tr></tbody></table></div><button type="button" class="more" data-more="Show 16 more jobs" data-less="Show fewer">Show 16 more jobs</button></div></section>
+<div class="two">
+<section id="flaky"><div class="section-head"><h2>Flaky jobs</h2><span class="note">failed, then passed on the same commit</span></div><div class="card flush"><div class="table-wrap"><table>
+<thead><tr><th scope="col">Job</th><th scope="col" class="num">Flaky commits</th><th scope="col" class="num">Rate</th><th scope="col" class="num">Wasted/mo</th><th scope="col">Examples</th></tr></thead>
+<tbody><tr><td><span class="strong">Build&amp;Test: node-26, windows-latest</span><span class="muted">CI</span></td>
+<td class="num">13<span class="muted-inline"> / 162</span></td>
+<td class="num"><span class="rate"><span style="width:32.1%"></span></span>8%</td>
+<td class="num">$2.27</td>
+<td class="links"><a href="https://github.com/vitejs/vite/actions/runs/44478538656" target="_blank" rel="noopener noreferrer">#44478538656</a> <a href="https://github.com/vitejs/vite/actions/runs/44446046478" target="_blank" rel="noopener noreferrer">#44446046478</a> <a href="https://github.com/vitejs/vite/actions/runs/44331368634" target="_blank" rel="noopener noreferrer">#44331368634</a></td></tr>
+<tr><td><span class="strong">Semantic Pull Request</span><span class="muted">Semantic Pull Request</span></td>
+<td class="num">3<span class="muted-inline"> / 149</span></td>
+<td class="num"><span class="rate"><span style="width:8.0%"></span></span>2%</td>
+<td class="num">$0.04</td>
+<td class="links"><a href="https://github.com/vitejs/vite/actions/runs/44566449457" target="_blank" rel="noopener noreferrer">#44566449457</a> <a href="https://github.com/vitejs/vite/actions/runs/44331363471" target="_blank" rel="noopener noreferrer">#44331363471</a> <a href="https://github.com/vitejs/vite/actions/runs/43911636673" target="_blank" rel="noopener noreferrer">#43911636673</a></td></tr>
+<tr><td><span class="strong">Build&amp;Test: node-24, ubuntu-latest</span><span class="muted">CI</span></td>
+<td class="num">2<span class="muted-inline"> / 162</span></td>
+<td class="num"><span class="rate"><span style="width:4.9%"></span></span>1%</td>
+<td class="num">$0.13</td>
+<td class="links"><a href="https://github.com/vitejs/vite/actions/runs/44446046478" target="_blank" rel="noopener noreferrer">#44446046478</a> <a href="https://github.com/vitejs/vite/actions/runs/44255057436" target="_blank" rel="noopener noreferrer">#44255057436</a></td></tr>
+<tr><td><span class="strong">Build&amp;Test: node-20, ubuntu-latest</span><span class="muted">CI</span></td>
+<td class="num">2<span class="muted-inline"> / 162</span></td>
+<td class="num"><span class="rate"><span style="width:4.9%"></span></span>1%</td>
+<td class="num">$0.09</td>
+<td class="links"><a href="https://github.com/vitejs/vite/actions/runs/43425067077" target="_blank" rel="noopener noreferrer">#43425067077</a> <a href="https://github.com/vitejs/vite/actions/runs/43360904073" target="_blank" rel="noopener noreferrer">#43360904073</a></td></tr></tbody></table></div></div></section>
+<section id="steps"><div class="section-head"><h2>Slowest steps</h2><span class="note">total runner time in window</span></div><div class="card flush"><div class="table-wrap"><table>
+<thead><tr><th scope="col">Step</th><th scope="col" class="num">Total time</th><th scope="col" class="num">p50</th><th scope="col" class="num">Samples</th></tr></thead>
+<tbody><tr><td><span class="strong">Test serve</span><span class="muted">CI › Build&amp;Test: node-26, macos-latest</span></td>
+<td class="num total"><span class="rate"><span style="width:100.0%"></span></span>3h 03m</td>
+<td class="num">1m 14s</td>
+<td class="num">156</td></tr>
+<tr><td><span class="strong">Test serve (bundled dev)</span><span class="muted">CI › Build&amp;Test: node-26, macos-latest</span></td>
+<td class="num total"><span class="rate"><span style="width:93.6%"></span></span>2h 52m</td>
+<td class="num">1m 11s</td>
+<td class="num">149</td></tr>
+<tr><td><span class="strong">Test serve</span><span class="muted">CI › Build&amp;Test: node-26, windows-latest</span></td>
+<td class="num total"><span class="rate"><span style="width:82.8%"></span></span>2h 32m</td>
+<td class="num">55s</td>
+<td class="num">172</td></tr>
+<tr><td><span class="strong">Test serve</span><span class="muted">CI › Build&amp;Test: node-20, ubuntu-latest</span></td>
+<td class="num total"><span class="rate"><span style="width:65.3%"></span></span>2h 00m</td>
+<td class="num">47s</td>
+<td class="num">156</td></tr>
+<tr><td><span class="strong">Test build</span><span class="muted">CI › Build&amp;Test: node-26, macos-latest</span></td>
+<td class="num total"><span class="rate"><span style="width:64.7%"></span></span>1h 58m</td>
+<td class="num">51s</td>
+<td class="num">148</td></tr>
+<tr><td><span class="strong">Test serve</span><span class="muted">CI › Build&amp;Test: node-22, ubuntu-latest</span></td>
+<td class="num total"><span class="rate"><span style="width:62.8%"></span></span>1h 55m</td>
+<td class="num">42s</td>
+<td class="num">159</td></tr>
+<tr><td><span class="strong">Test serve (bundled dev)</span><span class="muted">CI › Build&amp;Test: node-26, windows-latest</span></td>
+<td class="num total"><span class="rate"><span style="width:59.0%"></span></span>1h 48m</td>
+<td class="num">45s</td>
+<td class="num">149</td></tr>
+<tr><td><span class="strong">Test serve</span><span class="muted">CI › Build&amp;Test: node-24, ubuntu-latest</span></td>
+<td class="num total"><span class="rate"><span style="width:57.6%"></span></span>1h 45m</td>
+<td class="num">40s</td>
+<td class="num">156</td></tr>
+<tr><td><span class="strong">Test serve</span><span class="muted">CI › Build&amp;Test: node-26, ubuntu-latest</span></td>
+<td class="num total"><span class="rate"><span style="width:56.0%"></span></span>1h 42m</td>
+<td class="num">40s</td>
+<td class="num">152</td></tr>
+<tr><td><span class="strong">Test serve (bundled dev)</span><span class="muted">CI › Build&amp;Test: node-20, ubuntu-latest</span></td>
+<td class="num total"><span class="rate"><span style="width:53.8%"></span></span>1h 38m</td>
+<td class="num">39s</td>
+<td class="num">153</td></tr>
+<tr><td><span class="strong">Test serve (bundled dev)</span><span class="muted">CI › Build&amp;Test: node-22, ubuntu-latest</span></td>
+<td class="num total"><span class="rate"><span style="width:52.3%"></span></span>1h 36m</td>
+<td class="num">36s</td>
+<td class="num">158</td></tr>
+<tr><td><span class="strong">Test serve (bundled dev)</span><span class="muted">CI › Build&amp;Test: node-24, ubuntu-latest</span></td>
+<td class="num total"><span class="rate"><span style="width:48.1%"></span></span>1h 28m</td>
+<td class="num">34s</td>
+<td class="num">153</td></tr>
+<tr><td><span class="strong">Test serve (bundled dev)</span><span class="muted">CI › Build&amp;Test: node-26, ubuntu-latest</span></td>
+<td class="num total"><span class="rate"><span style="width:45.3%"></span></span>1h 23m</td>
+<td class="num">33s</td>
+<td class="num">145</td></tr>
+<tr><td><span class="strong">Install pnpm and node 26</span><span class="muted">CI › Build&amp;Test: node-26, windows-latest</span></td>
+<td class="num total"><span class="rate"><span style="width:44.3%"></span></span>1h 21m</td>
+<td class="num">26s</td>
+<td class="num">188</td></tr>
+<tr><td><span class="strong">Install pnpm and node 26</span><span class="muted">CI › Build&amp;Test: node-26, macos-latest</span></td>
+<td class="num total"><span class="rate"><span style="width:41.6%"></span></span>1h 16m</td>
+<td class="num">26s</td>
+<td class="num">170</td></tr></tbody></table></div></div></section>
+</div>
+<footer>
+<p><strong>Pricing assumptions</strong> (USD per billable minute, each job rounded up to whole minutes): Linux $0.006 · Linux ARM $0.005 · Windows $0.01 · macOS $0.062 · larger Linux runners $0.0025/core · self-hosted $0. Monthly figures are the 7-day window scaled to 30 days.</p>
+<p>Developer time is valued at $100/h <em>only to rank findings</em>; it is never added to dollar amounts, which are GitHub billing only.</p>
+<p>Public repositories on standard GitHub-hosted runners are free; dollar amounts are the <em>list-price equivalent</em> of the compute used. Included free minutes of paid plans are not deducted.</p>
+<p class="gen">Generated by ciburn from 1,024 runs of <span class="strong">vitejs/vite</span>, Nov 12 – Nov 19, 2026.</p>
+</footer>
+</main>
+<script>
+(function(){
+  function copyText(text){
+    if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text);
+    return new Promise(function(resolve, reject){
+      var ta = document.createElement("textarea");
+      ta.value = text; ta.setAttribute("readonly", ""); ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand("copy") ? resolve() : reject(); } catch (e) { reject(e); }
+      document.body.removeChild(ta);
+    });
+  }
+  document.querySelectorAll(".copy").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      var code = btn.parentElement.querySelector("code");
+      var label = btn.querySelector("span");
+      copyText(code.textContent).then(function(){
+        btn.classList.add("done"); label.textContent = "Copied";
+        setTimeout(function(){ btn.classList.remove("done"); label.textContent = "Copy"; }, 1500);
+      }, function(){
+        // Clipboard blocked (e.g. sandboxed viewer): select the code so the user can copy it manually.
+        var range = document.createRange(); range.selectNodeContents(code);
+        var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+        label.textContent = "Selected";
+      });
+    });
+  });
+  document.querySelectorAll(".collapsible .more").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      var box = btn.closest(".collapsible");
+      var open = box.classList.toggle("expanded");
+      btn.textContent = open ? btn.dataset.less : btn.dataset.more;
+    });
+  });
+  document.querySelectorAll("table.sortable").forEach(function(table){
+    var heads = table.querySelectorAll("th");
+    heads.forEach(function(th, col){
+      th.querySelector("button").addEventListener("click", function(){
+        var num = th.dataset.type === "num";
+        var desc = th.classList.contains("sorted-desc") ? false : th.classList.contains("sorted-asc") ? true : num;
+        heads.forEach(function(h){ h.classList.remove("sorted-asc", "sorted-desc"); h.removeAttribute("aria-sort"); });
+        th.classList.add(desc ? "sorted-desc" : "sorted-asc");
+        th.setAttribute("aria-sort", desc ? "descending" : "ascending");
+        var body = table.tBodies[0];
+        var rows = Array.prototype.slice.call(body.rows);
+        rows.sort(function(a, b){
+          var x = a.cells[col].dataset.v, y = b.cells[col].dataset.v;
+          var r = num ? (parseFloat(x) - parseFloat(y)) : x.localeCompare(y);
+          return desc ? -r : r;
+        });
+        var box = table.closest(".collapsible");
+        var limit = box ? parseInt(box.dataset.visible || "0", 10) : 0;
+        rows.forEach(function(r, i){
+          if (limit) r.classList.toggle("extra", i >= limit);
+          body.appendChild(r);
+        });
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,42 @@
+{
+  "name": "ciburn",
+  "version": "0.1.0",
+  "description": "Find where your GitHub Actions money and minutes burn: cost per workflow, flaky jobs, wasted reruns, missing concurrency, queue times \u2014 with concrete fixes and $ savings.",
+  "type": "module",
+  "bin": {
+    "ciburn": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "examples/demo-dataset.json",
+    "action.yml",
+    "src"
+  ],
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test 'test/**/*.test.ts'",
+    "dev": "node src/cli.ts"
+  },
+  "keywords": [
+    "github-actions",
+    "ci",
+    "cost",
+    "flaky-tests",
+    "finops",
+    "devops"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "typescript": "^7.0.2"
+  },
+  "packageManager": "pnpm@10.12.4",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ahmedbouh-dev/ciburn.git"
+  }
+}

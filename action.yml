@@ -1,0 +1,57 @@
+name: ciburn
+description: Find where your GitHub Actions money and minutes burn — cost, flaky jobs, wasted reruns, missing concurrency, with concrete fixes.
+author: ciburn contributors
+branding:
+  icon: trending-down
+  color: orange
+inputs:
+  repo:
+    description: owner/repo to analyze
+    default: ${{ github.repository }}
+  days:
+    description: Days of history to analyze
+    default: "30"
+  fail-on-waste:
+    description: Fail the step if wasted spend exceeds this percentage (empty = never)
+    default: ""
+  html:
+    description: Also write an HTML report and upload it as an artifact
+    default: "true"
+  token:
+    description: Token with actions:read
+    default: ${{ github.token }}
+outputs:
+  report-json:
+    description: Path to the JSON report
+    value: ${{ steps.run.outputs.json }}
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 24
+    - id: run
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.token }}
+        REPO: ${{ inputs.repo }}
+        DAYS: ${{ inputs.days }}
+        FAIL_ON_WASTE: ${{ inputs.fail-on-waste }}
+        HTML: ${{ inputs.html }}
+      run: |
+        out="$RUNNER_TEMP/ciburn"; mkdir -p "$out"
+        args=("$REPO" --days "$DAYS" --no-cache --quiet --md "$out/report.md" --json "$out/report.json")
+        [ "$HTML" = "true" ] && args+=(--html "$out/report.html")
+        [ -n "$FAIL_ON_WASTE" ] && args+=(--fail-on-waste "$FAIL_ON_WASTE")
+        set +e
+        node "$GITHUB_ACTION_PATH/src/cli.ts" "${args[@]}"; code=$?
+        set -e
+        [ -f "$out/report.md" ] && cat "$out/report.md" >> "$GITHUB_STEP_SUMMARY"
+        echo "json=$out/report.json" >> "$GITHUB_OUTPUT"
+        exit $code
+    - if: always() && inputs.html == 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: ciburn-report
+        path: ${{ runner.temp }}/ciburn/report.html
+        if-no-files-found: ignore
