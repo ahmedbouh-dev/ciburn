@@ -3,8 +3,10 @@
 **Find where your GitHub Actions money and minutes burn — and get the exact fix.**
 
 ```bash
-npx ciburn owner/repo
+npx github:ahmedbouh-dev/ciburn owner/repo
 ```
+
+(Shorter `npx ciburn` once the npm package is published.)
 
 ciburn reads your repo's GitHub Actions history and tells you, with numbers from *your* runs:
 
@@ -19,7 +21,7 @@ No SaaS, no agent to install, no data leaves your machine. It needs only a token
 ## Try it without a token
 
 ```bash
-npx ciburn --demo
+npx github:ahmedbouh-dev/ciburn --demo
 ```
 
 ## Real example: vitejs/vite (7 days, 1,024 runs)
