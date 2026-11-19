@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="ciburn finds where your GitHub Actions money and minutes burn: cost per workflow, flaky jobs, wasted reruns, missing concurrency, with the YAML fix." />
+    <title>ciburn — find where your CI money burns</title>
+    <script>
+      // Follow the OS theme; shadcn tokens switch on the .dark class.
+      const mq = matchMedia("(prefers-color-scheme: dark)");
+      const apply = () => document.documentElement.classList.toggle("dark", mq.matches);
+      apply();
+      mq.addEventListener("change", apply);
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
