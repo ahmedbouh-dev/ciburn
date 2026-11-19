@@ -1,0 +1,40 @@
+# Dogfooding: runs the published ciburn action (@v0) weekly and on demand.
+name: CI cost report
+on:
+  schedule:
+    - cron: "0 7 * * 1"
+  workflow_dispatch:
+    inputs:
+      repo:
+        description: owner/repo to analyze
+        default: vitejs/vite
+      days:
+        description: days of history
+        default: "2"
+permissions:
+  actions: read
+  contents: read
+jobs:
+  self:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: ahmedbouh-dev/ciburn@v0
+        with:
+          days: 30
+  external:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - id: ciburn
+        uses: ahmedbouh-dev/ciburn@v0
+        with:
+          repo: ${{ inputs.repo }}
+          days: ${{ inputs.days }}
+      - name: Check JSON output
+        env:
+          REPORT: ${{ steps.ciburn.outputs.report-json }}
+        run: |
+          test -s "$REPORT"
+          node -e 'const r = require(process.env.REPORT); console.log(r.repo + ": " + r.totals.runs + " runs, $" + r.totals.monthlyCost.usd + "/mo, " + r.findings.length + " findings")'
